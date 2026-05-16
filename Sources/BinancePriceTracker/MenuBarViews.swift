@@ -101,19 +101,41 @@ struct MenuBarContent: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(TechPalette.upText)
-                    .frame(width: 6, height: 6)
-                Text("LIVE")
-                    .font(.system(.caption2, design: .monospaced).weight(.bold))
-                    .kerning(0.8)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 1) {
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(TechPalette.upText)
+                        .frame(width: 6, height: 6)
+                    Text("LIVE")
+                        .font(.system(.caption2, design: .monospaced).weight(.bold))
+                        .kerning(0.8)
+                        .foregroundStyle(.secondary)
+                }
+                if let stamp = latestUpdateText {
+                    Text(stamp)
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
     }
+
+    private var latestUpdateText: String? {
+        let latest = store.tickers.values
+            .map(\.lastUpdate)
+            .filter { $0 > .distantPast }
+            .max()
+        guard let latest else { return nil }
+        return Self.timeFormatter.string(from: latest)
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 4) {
