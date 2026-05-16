@@ -41,6 +41,15 @@ final class BinanceWebSocketClient: NSObject {
         }
     }
 
+    /// Tear down and reopen the socket immediately. Use after the system wakes
+    /// from sleep — the existing task can stay in a half-open state that never
+    /// errors out, so neither `receive()` nor `didCloseWith` fires.
+    func forceReconnect() {
+        queue.async { [weak self] in
+            self?.reconnect(resetBackoff: true)
+        }
+    }
+
     // MARK: - Connection lifecycle (queue-isolated)
 
     private func reconnect(resetBackoff: Bool) {

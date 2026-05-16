@@ -63,6 +63,20 @@ final class AppCore: ObservableObject {
                 Task { @MainActor in self?.floatingController.setVisible(visible) }
             }
             .store(in: &cancellables)
+
+        // The WebSocket task often stays half-open across a sleep/wake cycle —
+        // no error, no didCloseWith — so no reconnect would ever fire. Listen
+        // for the workspace wake notification and kick both transports.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.wsClient.forceReconnect()
+                self?.restClient.refreshNow()
+            }
+        }
     }
 
     private func applySymbols() {

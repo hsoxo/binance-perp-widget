@@ -19,6 +19,11 @@ final class BinanceRestClient {
 
     func setSymbols(_ syms: [String]) {
         lock.withLock { symbols = syms }
+        refreshNow()
+    }
+
+    /// Trigger an immediate snapshot fetch outside the regular poll cadence.
+    func refreshNow() {
         Task.detached(priority: .background) { [weak self] in
             await self?.fetchAll()
         }
