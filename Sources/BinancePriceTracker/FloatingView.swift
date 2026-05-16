@@ -55,10 +55,17 @@ struct FloatingView: View {
             }
         }
         .onHover { hovering = $0 }
-        .background(
-            VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
-                .opacity(prefs.floatingOpacity)
-        )
+        .background {
+            Group {
+                if #available(macOS 26.0, *) {
+                    Color.clear
+                        .glassEffect(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                } else {
+                    VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
+                }
+            }
+            .opacity(prefs.floatingOpacity)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
