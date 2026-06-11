@@ -57,12 +57,16 @@ struct FloatingView: View {
         .onHover { hovering = $0 }
         .background {
             Group {
+#if compiler(>=6.2)
                 if #available(macOS 26.0, *) {
                     Color.clear
                         .glassEffect(in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 } else {
                     VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
                 }
+#else
+                VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
+#endif
             }
             .opacity(prefs.floatingOpacity)
         }
