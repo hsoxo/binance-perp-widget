@@ -30,6 +30,7 @@ mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$UNIVERSAL_BIN" "$APP_BUNDLE/Contents/MacOS/$EXEC_NAME"
 cp "Resources/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
+cp "Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$EXEC_NAME"
 
 # Ad-hoc sign so macOS doesn't kill it for code-signature mismatches

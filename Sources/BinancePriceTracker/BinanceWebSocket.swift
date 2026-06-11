@@ -12,6 +12,8 @@ final class BinanceWebSocketClient: NSObject {
 
     /// Called with (symbol, bid, ask) on every tick.
     private let onBookTick: @Sendable (String, Double, Double) -> Void
+    private let staleTimeout: TimeInterval
+    private let watchdogInterval: TimeInterval
 
     private let queue = DispatchQueue(label: "binance.ws.client")
     private lazy var session: URLSession = {
@@ -25,8 +27,14 @@ final class BinanceWebSocketClient: NSObject {
     private var desiredSymbols: Set<String> = []
     private var reconnectDelay: TimeInterval = 1
     private var reconnectWorkItem: DispatchWorkItem?
+    private var watchdogTimer: DispatchSourceTimer?
+    private var lastMessageAt: Date?
 
-    init(onBookTick: @escaping @Sendable (String, Double, Double) -> Void) {
+    init(staleTimeout: TimeInterval = 45,
+         watchdogInterval: TimeInterval = 15,
+         onBookTick: @escaping @Sendable (String, Double, Double) -> Void) {
+        self.staleTimeout = staleTimeout
+        self.watchdogInterval = watchdogInterval
         self.onBookTick = onBookTick
     }
 
@@ -61,6 +69,7 @@ final class BinanceWebSocketClient: NSObject {
         receiveTask = nil
         task?.cancel(with: .goingAway, reason: nil)
         task = nil
+        stopWatchdog()
 
         guard !desiredSymbols.isEmpty else { return }
         connect()
@@ -74,8 +83,10 @@ final class BinanceWebSocketClient: NSObject {
 
         let newTask = session.webSocketTask(with: url)
         task = newTask
+        lastMessageAt = Date()
         newTask.resume()
         startReceiveLoop(task: newTask)
+        startWatchdog(task: newTask)
     }
 
     /// The closure-based `receive(completionHandler:)` API silently stops
@@ -87,10 +98,11 @@ final class BinanceWebSocketClient: NSObject {
             while !Task.isCancelled {
                 do {
                     let message = try await task.receive()
+                    self?.queue.async { self?.markMessageReceived(task: task) }
                     self?.handle(message)
                 } catch {
                     if !Task.isCancelled {
-                        self?.queue.async { self?.scheduleReconnect() }
+                        self?.queue.async { self?.scheduleReconnect(ifCurrent: task) }
                     }
                     return
                 }
@@ -98,7 +110,43 @@ final class BinanceWebSocketClient: NSObject {
         }
     }
 
+    private func markMessageReceived(task receivedTask: URLSessionWebSocketTask) {
+        guard task === receivedTask else { return }
+        lastMessageAt = Date()
+        reconnectDelay = 1
+    }
+
+    private func startWatchdog(task watchedTask: URLSessionWebSocketTask) {
+        stopWatchdog()
+
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + watchdogInterval, repeating: watchdogInterval)
+        timer.setEventHandler { [weak self, weak watchedTask] in
+            guard let self, let watchedTask else { return }
+            guard self.task === watchedTask, !self.desiredSymbols.isEmpty else {
+                self.stopWatchdog()
+                return
+            }
+
+            let idle = Date().timeIntervalSince(self.lastMessageAt ?? .distantPast)
+            if idle >= self.staleTimeout {
+                NSLog("[BPT] WS stream stale for %.0fs; reconnecting", idle)
+                self.reconnect(resetBackoff: true)
+            }
+        }
+        watchdogTimer = timer
+        timer.resume()
+    }
+
+    private func stopWatchdog() {
+        watchdogTimer?.cancel()
+        watchdogTimer = nil
+        lastMessageAt = nil
+    }
+
     private func scheduleReconnect() {
+        reconnectWorkItem?.cancel()
+
         let delay = min(reconnectDelay, 30)
         reconnectDelay = min(reconnectDelay * 2, 30)
         let work = DispatchWorkItem { [weak self] in
@@ -106,6 +154,11 @@ final class BinanceWebSocketClient: NSObject {
         }
         reconnectWorkItem = work
         queue.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func scheduleReconnect(ifCurrent receivedTask: URLSessionWebSocketTask) {
+        guard task === receivedTask else { return }
+        scheduleReconnect()
     }
 
     nonisolated private func handle(_ message: URLSessionWebSocketTask.Message) {
@@ -131,7 +184,10 @@ extension BinanceWebSocketClient: URLSessionWebSocketDelegate {
                     webSocketTask: URLSessionWebSocketTask,
                     didCloseWith closeCode: URLSessionWebSocketTask.CloseCode,
                     reason: Data?) {
-        queue.async { [weak self] in self?.scheduleReconnect() }
+        queue.async { [weak self, weak webSocketTask] in
+            guard let self, let webSocketTask else { return }
+            self.scheduleReconnect(ifCurrent: webSocketTask)
+        }
     }
 }
 
