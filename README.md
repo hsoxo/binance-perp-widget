@@ -21,9 +21,9 @@ chmod +x build.sh run.sh
 ```
 
 This builds a universal release binary (`arm64` + `x86_64`), wraps it in
-`Binance Price Tracker.app`, creates `dist/BinancePriceTracker-macos-universal.zip`,
-and launches the app. The app has no Dock icon — look for the price in your
-menu bar.
+`Binance Price Tracker.app`, creates `dist/BinancePriceTracker-macos-universal.dmg`,
+and launches the app. The app is menu-bar-only — look for the price in your
+menu bar instead of the Dock.
 
 To rebuild after editing code:
 
@@ -72,6 +72,6 @@ Sources/BinancePriceTracker/
   FloatingView.swift         # Floating panel UI
   SettingsView.swift         # Settings window
 Resources/Info.plist         # LSUIElement = true → menu-bar-only app
-build.sh                     # universal build -> .app + release zip (+ ad-hoc sign)
+build.sh                     # universal build -> .app + release dmg (+ ad-hoc sign)
 run.sh                       # build if needed, then open
 ```

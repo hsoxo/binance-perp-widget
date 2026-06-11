@@ -56,7 +56,10 @@ struct FloatingView: View {
         }
         .onHover { hovering = $0 }
         .background {
-            Group {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.78))
+
 #if compiler(>=6.2)
                 if #available(macOS 26.0, *) {
                     Color.clear
@@ -71,6 +74,10 @@ struct FloatingView: View {
             .opacity(prefs.floatingOpacity)
         }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5)
+        )
     }
 
     @ViewBuilder
