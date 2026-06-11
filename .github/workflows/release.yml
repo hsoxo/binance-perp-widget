@@ -18,25 +18,19 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app
 
       - name: Build app bundle
-        run: ./build.sh
-
-      - name: Zip app bundle
-        run: |
-          ditto -c -k --sequesterRsrc --keepParent \
-            "Binance Price Tracker.app" \
-            "BinancePriceTracker-${GITHUB_REF_NAME}.zip"
+        run: ZIP_NAME="BinancePriceTracker-${GITHUB_REF_NAME}-macos-universal.zip" ./build.sh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: BinancePriceTracker-*.zip
+          files: dist/BinancePriceTracker-*.zip
           generate_release_notes: true
           draft: false
           prerelease: false
           body: |
             ## Install
 
-            1. Download `BinancePriceTracker-${{ github.ref_name }}.zip`
+            1. Download `BinancePriceTracker-${{ github.ref_name }}-macos-universal.zip`
             2. Unzip and move **Binance Price Tracker.app** to `/Applications`
             3. First launch is ad-hoc signed — right-click the app and choose **Open**, or run:
                ```sh
